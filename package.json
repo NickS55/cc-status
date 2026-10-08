@@ -1,0 +1,19 @@
+{
+  "name": "cc-status",
+  "version": "0.1.0",
+  "description": "Live status of every Claude Code session on this machine, with a ping when one finishes",
+  "type": "module",
+  "bin": {
+    "ccs": "bin/ccs.js"
+  },
+  "scripts": {
+    "start": "node bin/ccs.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ink": "^5.2.1",
+    "react": "^18.3.1"
+  }
+}
