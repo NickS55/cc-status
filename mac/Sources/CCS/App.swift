@@ -109,6 +109,7 @@ struct Panel: View {
     @EnvironmentObject var store: Store
     @State private var detail: String?
     @State private var sel = 0
+    @State private var stopping: String? // armed by d, carried out by Enter
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -126,7 +127,7 @@ struct Panel: View {
                     ScrollViewReader { proxy in
                         VStack(spacing: 2) {
                             ForEach(Array(store.shown.enumerated()), id: \.element.id) { i, s in
-                                Row(s: s, selected: i == sel, showDetail: { detail = s.id })
+                                Row(s: s, selected: i == sel, stopping: s.id == stopping, showDetail: { detail = s.id })
                                     .id(s.id)
                             }
                         }
@@ -153,15 +154,23 @@ struct Panel: View {
     private func reset() {
         detail = nil
         sel = 0
+        stopping = nil
         focused = true
     }
 
     private func key(_ press: KeyPress) -> KeyPress.Result {
         let shown = store.shown
+        // d arms a stop; Enter carries it out and any other key cancels it.
+        if let id = stopping {
+            stopping = nil
+            if press.key == .return, let s = store.sessions.first(where: { $0.id == id }) { store.stop(s) }
+            return .handled
+        }
         if let id = detail, let s = store.sessions.first(where: { $0.id == id }) {
             switch press.key {
             case .escape, "i": detail = nil
             case .return: store.focus(s)
+            case "d" where s.live: stopping = s.id
             default: return .ignored
             }
             return .handled
@@ -175,6 +184,9 @@ struct Panel: View {
         case "i":
             guard shown.indices.contains(sel) else { return .ignored }
             detail = shown[sel].id
+        case "d":
+            guard shown.indices.contains(sel), shown[sel].live else { return .ignored }
+            stopping = shown[sel].id
         default: return .ignored
         }
         return .handled
@@ -195,7 +207,10 @@ struct Panel: View {
 
     private var footer: some View {
         HStack(spacing: 12) {
-            if !store.flash.isEmpty {
+            if let id = stopping, let s = store.sessions.first(where: { $0.id == id }) {
+                Text("Stop \(s.label)? Enter stops it, any other key cancels.")
+                    .foregroundStyle(.red).lineLimit(1)
+            } else if !store.flash.isEmpty {
                 Text(store.flash).foregroundStyle(.green).lineLimit(1)
             } else {
                 Toggle("Ended", isOn: $store.showDead)
@@ -235,6 +250,7 @@ struct Row: View {
     @EnvironmentObject var store: Store
     let s: Session
     let selected: Bool
+    let stopping: Bool
     let showDetail: () -> Void
     @State private var hover = false
 
@@ -268,7 +284,7 @@ struct Row: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .opacity(s.live ? 1 : 0.55)
-        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.25) : hover ? Color.primary.opacity(0.08) : .clear))
+        .background(RoundedRectangle(cornerRadius: 6).fill(stopping ? Color.red.opacity(0.25) : selected ? Color.accentColor.opacity(0.25) : hover ? Color.primary.opacity(0.08) : .clear))
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture { store.focus(s) }

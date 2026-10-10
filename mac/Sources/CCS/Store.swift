@@ -120,6 +120,39 @@ final class Store: ObservableObject {
         NSWorkspace.shared.open(URL(fileURLWithPath: s.cwd))
     }
 
+    /// Asks the session's claude process to exit (SIGTERM), the same as
+    /// closing its terminal tab. Checks first that the pid still belongs to
+    /// that process: Claude Code records its start time (UTC) in the session
+    /// file, and a pid reused by something else won't match it.
+    func stop(_ s: Session) {
+        guard s.live else { return say("that session has ended") }
+        guard let recorded = s.procStart, let started = processStart(s.pid),
+              recorded.split(whereSeparator: \.isWhitespace) == started.split(whereSeparator: \.isWhitespace) else {
+            return say("not stopping: pid \(s.pid) doesn't look like that session any more")
+        }
+        guard kill(s.pid, SIGTERM) == 0 else { return say("couldn't stop it: \(String(cString: strerror(errno)))") }
+        say("stopping \(s.label)…")
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            refresh()
+            if kill(s.pid, 0) == 0 { say("\(s.label) is still running") }
+            else { say("stopped \(s.label)") }
+        }
+    }
+
+    private func processStart(_ pid: Int32) -> String? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.size
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        let start = Date(timeIntervalSince1970: TimeInterval(info.kp_proc.p_starttime.tv_sec))
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "EEE MMM d HH:mm:ss yyyy"
+        return f.string(from: start)
+    }
+
     func copyResume(_ s: Session) {
         let quoted = "'" + s.cwd.replacingOccurrences(of: "'", with: "'\\''") + "'"
         NSPasteboard.general.clearContents()

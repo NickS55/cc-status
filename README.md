@@ -52,7 +52,7 @@ the sound and shows which session is ready.
 `mac/` has the same dashboard as a native menu bar app (SwiftUI, macOS 14+). The icon
 shows how many sessions are busy; click it, or press ⌘1 from anywhere, for the list. It opens with the first
 session selected: `↑↓`, `w s` or `k j` move, Enter jumps to its Ghostty tab, `i` shows details,
-Esc closes. Clicking a session jumps to it too, or right-click for details, its folder, and the resume command. Sound,
+`d` then Enter stops the session (any other key cancels), Esc closes. Clicking a session jumps to it too, or right-click for details, its folder, and the resume command. Sound,
 notifications and showing ended sessions are toggles at the bottom, and the `⋯` menu
 picks the sound and the shortcut.
 

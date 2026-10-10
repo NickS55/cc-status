@@ -20,6 +20,7 @@ struct Session: Identifiable, Hashable {
     let name: String
     let cwd: String
     let version: String
+    let procStart: String? // when the process started, to tell it from a reused pid
     let startedAt: Date
     let live: Bool
     let status: String // busy, idle, dead, unknown
@@ -225,6 +226,7 @@ final class SessionReader {
                 name: (s["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? String(id.prefix(8)),
                 cwd: cwd,
                 version: s["version"] as? String ?? "",
+                procStart: s["procStart"] as? String,
                 startedAt: started,
                 live: live,
                 status: live ? s["status"] as? String ?? "unknown" : "dead",
