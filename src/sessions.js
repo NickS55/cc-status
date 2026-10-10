@@ -77,9 +77,13 @@ function describeTool(t) {
   return `${t.name}${arg ? `: ${String(arg).split('\n')[0]}` : ''}`;
 }
 
+const isPush = (t) => t.name === 'Bash' && /\bgit\s+push\b/.test(t.input?.command || '');
+
 function summarize(entries) {
   const info = { title: null, lastPrompt: null, lastReply: null, lastTool: null, recap: null,
-    cost: null, linesAdded: 0, linesRemoved: 0, models: {}, subagents: 0, exchanges: [] };
+    cost: null, linesAdded: 0, linesRemoved: 0, models: {}, subagents: 0, exchanges: [],
+    pushed: false }; // pushed: the last thing Claude did was a git push that worked
+  let pushId = null; // the last tool call, if it was a push
   for (const d of entries) {
     if (d.type === 'ai-title') info.title = d.aiTitle;
     else if (d.type === 'last-prompt') info.lastPrompt = d.lastPrompt;
@@ -96,10 +100,19 @@ function summarize(entries) {
       if (t && !t.startsWith('<')) {
         info.exchanges.push({ who: 'you', text: t });
         info.recap = null; // a new prompt makes the older recap stale
+        info.pushed = false;
+        pushId = null;
       }
+    } else if (d.type === 'user' && pushId && Array.isArray(d.message?.content)) {
+      const r = d.message.content.find((c) => c.tool_use_id === pushId);
+      if (r) info.pushed = !r.is_error;
     } else if (d.type === 'assistant') {
       for (const c of d.message?.content || []) {
-        if (c.type === 'tool_use') info.lastTool = describeTool(c);
+        if (c.type === 'tool_use') {
+          info.lastTool = describeTool(c);
+          pushId = isPush(c) ? c.id : null;
+          info.pushed = false;
+        }
       }
       const t = textOf(d.message?.content).trim();
       if (t) {

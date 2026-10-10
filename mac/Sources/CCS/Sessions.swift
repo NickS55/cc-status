@@ -34,6 +34,7 @@ struct Session: Identifiable, Hashable {
     var models: [ModelUsage] = []
     var subagents = 0
     var exchanges: [Exchange] = []
+    var pushed = false
 
     var busy: Bool { status == "busy" }
     var label: String { title ?? name }
@@ -50,6 +51,7 @@ private struct TranscriptInfo {
     var models: [ModelUsage] = []
     var subagents = 0
     var exchanges: [Exchange] = []
+    var pushed = false // the last thing Claude did was a git push that worked
 }
 
 final class SessionReader {
@@ -119,8 +121,15 @@ final class SessionReader {
         return first.isEmpty ? name : "\(name): \(first)"
     }
 
+    private func isPush(_ t: [String: Any]) -> Bool {
+        guard t["name"] as? String == "Bash",
+              let cmd = (t["input"] as? [String: Any])?["command"] as? String else { return false }
+        return cmd.range(of: #"\bgit\s+push\b"#, options: .regularExpression) != nil
+    }
+
     private func summarize(_ entries: [[String: Any]]) -> TranscriptInfo {
         var info = TranscriptInfo()
+        var pushId: String? // the last tool call, if it was a push
         for d in entries {
             let type = d["type"] as? String
             if type == "ai-title" {
@@ -148,11 +157,19 @@ final class SessionReader {
                 if !t.isEmpty, !t.hasPrefix("<") {
                     info.exchanges.append(Exchange(who: "you", text: t))
                     info.recap = nil // a new prompt makes the older recap stale
+                    info.pushed = false
+                    pushId = nil
                 }
+            } else if type == "user", let id = pushId,
+                      let parts = (d["message"] as? [String: Any])?["content"] as? [[String: Any]],
+                      let r = parts.first(where: { $0["tool_use_id"] as? String == id }) {
+                info.pushed = r["is_error"] as? Bool != true
             } else if type == "assistant" {
                 let content = (d["message"] as? [String: Any])?["content"]
                 for c in content as? [[String: Any]] ?? [] where c["type"] as? String == "tool_use" {
                     info.lastTool = describeTool(c)
+                    pushId = isPush(c) ? c["id"] as? String : nil
+                    info.pushed = false
                 }
                 let t = textOf(content).trimmingCharacters(in: .whitespacesAndNewlines)
                 if !t.isEmpty {
@@ -223,6 +240,7 @@ final class SessionReader {
                 session.models = t.models
                 session.subagents = t.subagents
                 session.exchanges = t.exchanges
+                session.pushed = t.pushed
             }
             out.append(session)
         }

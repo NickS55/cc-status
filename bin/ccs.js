@@ -71,16 +71,16 @@ function context(s) {
 function Row({ s, selected, frame, width }) {
   const busy = s.status === 'busy';
   const dot = busy ? SPIN[frame % SPIN.length] : s.live ? '○' : '✕';
-  const color = busy ? 'yellow' : s.live ? 'green' : 'gray';
-  const label = busy ? 'busy' : s.live ? 'idle' : 'dead';
+  const color = busy ? 'yellow' : !s.live ? 'gray' : s.pushed ? 'magenta' : 'green';
+  const label = busy ? 'busy' : !s.live ? 'dead' : s.pushed ? 'pushed' : 'idle';
   const nameW = 24;
   const right = `${money(s.cost).padStart(7)}`;
-  const cwdW = Math.max(10, width - nameW - 22 - right.length);
+  const cwdW = Math.max(10, width - nameW - 24 - right.length);
   return h(Box, { flexDirection: 'column', marginBottom: 0 },
     h(Text, { inverse: selected, dimColor: !s.live },
       h(Text, { color }, ` ${dot} `),
       h(Text, { bold: true }, clip(s.title || s.name, nameW).padEnd(nameW)),
-      h(Text, { color }, ` ${label.padEnd(4)}`),
+      h(Text, { color }, ` ${label.padEnd(6)}`),
       ` ${ago(s.statusSince).padStart(4)}  `,
       h(Text, { color: 'cyan' }, clip(tilde(s.cwd), cwdW).padEnd(cwdW)),
       h(Text, { dimColor: true }, right),

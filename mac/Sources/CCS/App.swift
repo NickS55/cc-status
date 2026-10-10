@@ -12,7 +12,7 @@ struct CCSApp: App {
         // parser against the CLI's without opening the menu.
         if CommandLine.arguments.contains("--list") {
             for s in SessionReader().load() {
-                print([s.id, s.status, s.title ?? "-", money(s.cost), s.lastTool ?? "-", "\(s.exchanges.count)"].joined(separator: "\t"))
+                print([s.id, s.status, s.title ?? "-", money(s.cost), s.lastTool ?? "-", "\(s.exchanges.count)", s.pushed ? "pushed" : "-"].joined(separator: "\t"))
             }
             exit(0)
         }
@@ -96,7 +96,8 @@ func money(_ c: Double?) -> String {
 }
 
 private extension Session {
-    var color: Color { busy ? .orange : live ? .green : .secondary }
+    var color: Color { busy ? .orange : !live ? .secondary : pushed ? .purple : .green }
+    var state: String { busy ? "busy" : !live ? "ended" : pushed ? "pushed" : "idle" }
     var context: String {
         if busy { return lastTool.map { "⚙ \($0)" } ?? lastPrompt.map { "\"\(oneLine($0))\"" } ?? "" }
         if let recap { return "Recap: \(oneLine(recap))" }
@@ -250,7 +251,7 @@ struct Row: View {
                 HStack(spacing: 6) {
                     Text(s.label).fontWeight(.medium).lineLimit(1)
                     Spacer(minLength: 4)
-                    Text(s.busy ? "busy" : s.live ? "idle" : "ended").foregroundStyle(s.color)
+                    Text(s.state).foregroundStyle(s.color)
                     Text(ago(s.statusSince)).foregroundStyle(.secondary).monospacedDigit()
                 }
                 HStack(spacing: 6) {
