@@ -45,16 +45,32 @@ Options: `--sound <name>` (any of `/System/Library/Sounds`, default `Glass`),
 `--quiet`, `--notify`.
 
 When a session goes from busy to idle (it finished, or it's waiting on you), `ccs` plays
-the sound and shows which session is ready.
+the sound and shows which session is ready. A session whose last step was a `git push`
+that worked shows `pushed` instead of `idle`, until it does something else.
+
+Live sessions are listed by their last status change, so the one that just finished is at
+the top. Ended sessions come after them.
 
 ## Mac app
 
 `mac/` has the same dashboard as a native menu bar app (SwiftUI, macOS 14+). The icon
-shows how many sessions are busy; click it, or press ⌘1 from anywhere, for the list (hold ⌘ and press 1 again to move down the list, then let go to jump to that session, like ⌘Tab). It opens with the first
-session selected: `↑↓`, `w s` or `k j` move, Enter jumps to its Ghostty tab, `i` shows details,
-`d` then Enter stops the session (any other key cancels), `n` opens a new Ghostty tab running `claude` in the selected session's folder, Esc closes. Clicking a session jumps to it too, or right-click for details, its folder, and the resume command. Sound,
-notifications and showing ended sessions are toggles at the bottom, and the `⋯` menu
-picks the sound and the shortcut.
+shows how many sessions are busy. Click it, or press ⌘1 from anywhere, for the list. Like
+⌘Tab, hold ⌘ and press 1 again to move down the list, then let go to jump to that session.
+
+It opens with the first session selected:
+
+| Key | |
+|---|---|
+| `↑↓` / `w s` / `k j` | select a session |
+| `Enter` | jump to its Ghostty tab |
+| `i` | details |
+| `d` then `Enter` | stop the session (any other key cancels) |
+| `n` | open a new Ghostty tab running `claude` in the session's folder |
+| `Esc` | close |
+
+Clicking a session jumps to it too; right-click for details, its folder, and the resume
+command. Sound, notifications and showing ended sessions are toggles at the bottom, and
+the `⋯` menu picks the sound and the shortcut.
 
 ```sh
 mac/build.sh             # builds mac/CCS.app
@@ -64,6 +80,8 @@ mac/build.sh --install   # and copies it to /Applications
 Needs the Xcode command line tools. The first time you jump to a tab, macOS asks whether
 CCS may control Ghostty. Say yes. `mac/Sources/CCS/Sessions.swift` is a port of
 `src/sessions.js`, so a Claude Code change that breaks one needs fixing in both.
+`mac/CCS.app/Contents/MacOS/CCS --list` prints what the app sees and exits, for comparing
+the two.
 
 ## How it works
 
