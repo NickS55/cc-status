@@ -246,7 +246,8 @@ final class SessionReader {
             }
             out.append(session)
         }
-        let rank = { (s: Session) in s.busy ? 0 : s.live ? 1 : 2 }
-        return out.sorted { rank($0) != rank($1) ? rank($0) < rank($1) : $0.statusSince > $1.statusSince }
+        // Live sessions by their last status change, so one that just finished
+        // comes first; ended ones after them.
+        return out.sorted { $0.live != $1.live ? $0.live : $0.statusSince > $1.statusSince }
     }
 }

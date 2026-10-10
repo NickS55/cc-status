@@ -176,6 +176,7 @@ export function loadSessions() {
       ...(transcriptInfo(s.sessionId, s.cwd || '') || {}),
     });
   }
-  const rank = (s) => (s.status === 'busy' ? 0 : s.live ? 1 : 2);
-  return out.sort((a, b) => rank(a) - rank(b) || b.statusSince - a.statusSince);
+  // Live sessions by their last status change, so one that just finished
+  // comes first; ended ones after them.
+  return out.sort((a, b) => b.live - a.live || b.statusSince - a.statusSince);
 }
