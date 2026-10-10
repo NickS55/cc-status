@@ -57,3 +57,23 @@ func focusSession(_ s: Session, among sessions: [Session]) throws -> Bool {
     """)
     return true
 }
+
+/// Opens a new Ghostty tab (a window if none is open) in `dir` and starts
+/// `claude` there. It's typed into the shell rather than run as the tab's
+/// command, so the shell's PATH finds it and the tab stays open after it exits.
+func newSession(in dir: String) throws {
+    let d = dir.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+    _ = try run("""
+    tell application "Ghostty"
+      set cfg to new surface configuration
+      set initial working directory of cfg to "\(d)"
+      set initial input of cfg to "claude" & linefeed
+      if (count of windows) > 0 then
+        new tab in front window with configuration cfg
+      else
+        new window with configuration cfg
+      end if
+      activate
+    end tell
+    """)
+}

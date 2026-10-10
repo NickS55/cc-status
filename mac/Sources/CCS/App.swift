@@ -32,6 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private var hotkey: Hotkey?
     private var watching: [AnyCancellable] = []
+    private var current: Shortcut?
+    private var cycling = false // cycled since the modifiers went down
 
     func applicationDidFinishLaunching(_ note: Notification) {
         let host = NSHostingController(rootView: Panel().environmentObject(store))
@@ -43,14 +45,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.action = #selector(toggle)
         item.button?.imagePosition = .imageLeading
 
-        hotkey = Hotkey { [weak self] in Task { @MainActor in self?.toggle() } }
+        hotkey = Hotkey { [weak self] in Task { @MainActor in self?.shortcut() } }
         watching = [
             store.$sessions.sink { [weak self] _ in DispatchQueue.main.async { self?.updateIcon() } },
             store.$shortcut.sink { [weak self] label in
                 let shortcut = Shortcut.presets.first { $0.label == label }
+                self?.current = shortcut
                 if self?.hotkey?.set(shortcut) == false { self?.store.say("\(label) is taken by another app") }
             },
         ]
+        // Our own window has the keyboard while the panel is open, so a local
+        // monitor sees the modifiers come up; no Input Monitoring needed.
+        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] e in
+            self?.flagsChanged(e)
+            return e
+        }
     }
 
     private func updateIcon() {
@@ -60,7 +69,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.title = busy > 0 ? " \(busy)" : ""
     }
 
+    /// The shortcut opens the panel, and pressed again while it's open moves
+    /// the selection down, wrapping at the end, like ⌘Tab through apps.
+    /// Opening and letting go leaves the panel open; cycling and letting go
+    /// jumps to the selected session.
+    private func shortcut() {
+        if popover.isShown {
+            store.cycled += 1
+            cycling = true
+        } else {
+            toggle()
+        }
+    }
+
+    private func flagsChanged(_ e: NSEvent) {
+        guard cycling, let mods = current?.flags else { return }
+        if e.modifierFlags.intersection(mods).isEmpty {
+            cycling = false
+            store.released += 1
+        }
+    }
+
     @objc func toggle() {
+        cycling = false
         if popover.isShown {
             popover.performClose(nil)
         } else if let button = item.button {
@@ -148,6 +179,10 @@ struct Panel: View {
         .onKeyPress(phases: .down, action: key)
         .onAppear { reset() }
         .onChange(of: store.opened) { reset() }
+        .onChange(of: store.cycled) { cycle() }
+        .onChange(of: store.released) {
+            if store.shown.indices.contains(sel) { store.focus(store.shown[sel]) }
+        }
     }
 
     /// Each time the panel opens: back to the list, first session selected.
@@ -156,6 +191,14 @@ struct Panel: View {
         sel = 0
         stopping = nil
         focused = true
+    }
+
+    private func cycle() {
+        let n = store.shown.count
+        guard n > 0 else { return }
+        detail = nil
+        stopping = nil
+        sel = (sel + 1) % n
     }
 
     private func key(_ press: KeyPress) -> KeyPress.Result {
@@ -171,6 +214,7 @@ struct Panel: View {
             case .escape, "i": detail = nil
             case .return: store.focus(s)
             case "d" where s.live: stopping = s.id
+            case "n": store.newSession(near: s)
             default: return .ignored
             }
             return .handled
@@ -187,6 +231,7 @@ struct Panel: View {
         case "d":
             guard shown.indices.contains(sel), shown[sel].live else { return .ignored }
             stopping = shown[sel].id
+        case "n": store.newSession(near: shown.indices.contains(sel) ? shown[sel] : nil)
         default: return .ignored
         }
         return .handled

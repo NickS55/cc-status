@@ -1,11 +1,22 @@
 // A system-wide shortcut that opens the panel. Carbon's RegisterEventHotKey is
 // still the way to do this without asking for Accessibility access.
+import AppKit
 import Carbon
 
 struct Shortcut: Hashable {
     let label: String
     let keyCode: UInt32
     let modifiers: UInt32
+
+    /// The modifiers as AppKit sees them, to tell when they're let go.
+    var flags: NSEvent.ModifierFlags {
+        var f: NSEvent.ModifierFlags = []
+        if modifiers & UInt32(cmdKey) != 0 { f.insert(.command) }
+        if modifiers & UInt32(optionKey) != 0 { f.insert(.option) }
+        if modifiers & UInt32(controlKey) != 0 { f.insert(.control) }
+        if modifiers & UInt32(shiftKey) != 0 { f.insert(.shift) }
+        return f
+    }
 
     static let presets: [Shortcut] = [
         Shortcut(label: "⌘1", keyCode: UInt32(kVK_ANSI_1), modifiers: UInt32(cmdKey)),

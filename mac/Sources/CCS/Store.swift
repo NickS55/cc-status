@@ -9,6 +9,8 @@ final class Store: ObservableObject {
     @Published var flash = ""
     /// Bumped each time the panel opens, so it can reset its selection.
     @Published var opened = 0
+    @Published var cycled = 0 // the shortcut pressed again while open
+    @Published var released = 0 // its modifiers let go after cycling: jump
     @Published var showDead = UserDefaults.standard.bool(forKey: "showDead") {
         didSet { UserDefaults.standard.set(showDead, forKey: "showDead") }
     }
@@ -113,6 +115,17 @@ final class Store: ObservableObject {
             say(ok ? "→ \(s.label)" : "couldn't find its terminal window")
         } catch {
             say("couldn't focus: \(error.localizedDescription)")
+        }
+    }
+
+    /// A new Claude Code session in a new Ghostty tab, in `s`'s folder (home if nil).
+    func newSession(near s: Session?) {
+        let dir = s?.cwd ?? FileManager.default.homeDirectoryForCurrentUser.path
+        do {
+            try CCS.newSession(in: dir)
+            say("new session in \(tilde(dir))")
+        } catch {
+            say("couldn't open a tab: \(error.localizedDescription)")
         }
     }
 
