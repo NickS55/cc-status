@@ -47,6 +47,24 @@ Options: `--sound <name>` (any of `/System/Library/Sounds`, default `Glass`),
 When a session goes from busy to idle (it finished, or it's waiting on you), `ccs` plays
 the sound and shows which session is ready.
 
+## Mac app
+
+`mac/` has the same dashboard as a native menu bar app (SwiftUI, macOS 14+). The icon
+shows how many sessions are busy; click it, or press ⌘1 from anywhere, for the list. It opens with the first
+session selected: `↑↓`, `w s` or `k j` move, Enter jumps to its Ghostty tab, `i` shows details,
+Esc closes. Clicking a session jumps to it too, or right-click for details, its folder, and the resume command. Sound,
+notifications and showing ended sessions are toggles at the bottom, and the `⋯` menu
+picks the sound and the shortcut.
+
+```sh
+mac/build.sh             # builds mac/CCS.app
+mac/build.sh --install   # and copies it to /Applications
+```
+
+Needs the Xcode command line tools. The first time you jump to a tab, macOS asks whether
+CCS may control Ghostty. Say yes. `mac/Sources/CCS/Sessions.swift` is a port of
+`src/sessions.js`, so a Claude Code change that breaks one needs fixing in both.
+
 ## How it works
 
 It only reads files. Claude Code keeps a file per running session in
